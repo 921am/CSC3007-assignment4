@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1901841 | Assignment 4</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.12.1/css/dataTables.bootstrap5.min.css">
+  
+  <script src="https://d3js.org/d3.v6.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.24.0/d3-legend.js"></script>
+</head>
+<body>
+    <svg></svg>
+
+    <script>
+        let width = 800, height = 800;
+        let svg = d3.select("svg")
+            .attr("viewBox", "0 0 " + width + " " + height)
+
+        // Load external data
+        Promise.all([d3.json("links-sample.json"), d3.json("cases-sample.json")]).then(data => {
+        // Data preprocessing
+        data[0].forEach(e => {
+            e.source = e.infector;
+            e.target = e.infectee;
+        });
+    
+        function drag(event, d) {
+            if (!event.active) sim.alphaTarget(1).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+        }
+        function dragging(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+        function draged(event, d) {
+            if (!event.active) sim.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+        }
+
+        let path = svg
+            .append("g")
+            .attr("id", "links")
+            .selectAll("path")
+            .data(data[0])
+            .enter()
+            .append("path")
+            .attr("fill", "none")
+            .attr("stroke", "black");
+
+        let node = svg.append("g")
+            .attr("id", "nodes")
+            .selectAll("circle")
+            .data(data[1])
+            .enter()
+            .append("circle")
+            .attr("r", 18)
+            .style("stroke", "black").style("stroke-width", 1)
+            .style("fill", (d) => {
+                if (d.gender == "female") {return '#b85887'} 
+                else {return '#2768a4'}
+            })
+            .call(d3.drag()
+                .on("start", drag)
+                .on("drag", dragging)
+                .on("end", draged));
+
+        let x = d3.scaleOrdinal()
+            .domain([0, 1])
+            .range([500, 800]);
+
+        let sim = d3.forceSimulation()
+            .nodes(data[1])
+            .force("x",
+                d3
+                .forceX()
+                .strength(0.1)
+                .x(function(d) {return x(d.class);})
+            )
+            .force("y",
+                d3
+                .forceY()
+                .strength(0.1)
+                .y(height / 2)
+            )
+            .force("link",
+                d3
+                .forceLink(data[0])
+                .id((d) => d.id)
+                .distance(100)
+                .strength(0.5)
+            )
+            .force("charge", d3.forceManyBody().strength(20))
+            .force("collide", d3.forceCollide().strength(1).radius(30))
+            .on("tick", d => {
+                node
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+
+                path.attr("d", function(d) {
+                var dx = d.target.x - d.source.x,
+                    dy = d.target.y - d.source.y,
+                    dr = Math.sqrt(dx * dx + dy * dy);
+                return "M" + d.source.x + "," + d.source.y + "A" + dr + "," + dr + " 0 0,1 " + d.target.x + "," + d.target.y;
+                });
+            });
+            var scale = d3
+                .scaleOrdinal()
+                .domain(["Male", "Female"])
+                .range(["#2768a4", "#b85887"]);
+            var key = d3.legendColor()
+                .labels(["Male", "Female"])
+                .scale(scale)
+                .title("Key: ")
+                .style("fill", "black");
+            svg.append("g").attr("transform", "translate(100,10)").call(key);
+        })
+    </script>
+
+</body>
+</html>
